@@ -4,7 +4,7 @@
   "version" : "1.0.0",
   "dependencies" : {
     "node-uuid" : "1.4.1",
-    "mqlight" : "https://ibm.biz/node-mqlight"
+    "mqlight" : "0.1.2014062300"
   },
   "repository": {
     "type": "git",
