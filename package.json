@@ -1,0 +1,13 @@
+{
+  "name" : "mqlight-ui-workout",
+  "description" : "MQ Light sample that generates work for the web UI",
+  "version" : "1.0.0",
+  "dependencies" : {
+    "node-uuid" : "1.4.1",
+    "mqlight" : "https://ibm.biz/node-mqlight"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ibm-messaging/mqlight-ui-workout"
+  }
+}
