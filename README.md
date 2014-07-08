@@ -15,4 +15,6 @@ to install the required modules and then
 npm app.js
 ```
 
-Navigate to the MQ Light web UI to test that 
+To run the app.
+
+Navigate to the MQ Light web UI (Default: [http://localhost:9180/#page=home](http://localhost:9180/#page=home)) to see clients connects and messages being sent. For an explanation of the web UI, check out [this article](https://developer.ibm.com/messaging/mq-light/ui-tooling-design/).
