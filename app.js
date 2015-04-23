@@ -1,17 +1,31 @@
-/*******************************************************************************
- * Copyright (c) 2014 IBM Corporation and other Contributors.
+/* @(#) MQMBID sn=p800-L150319.2
+ su=_ebnDMM5qEeSDLvfcaMWZMw
+ pn=appmsging/nodejs/mqlight/samples/uiworkout.js
+ */
+/*
+ * <copyright
+ * notice="lm-source-program"
+ * pids="5725-P60"
+ * years="2013,2014"
+ * crc="3568777996" >
+ * Licensed Materials - Property of IBM
  *
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * 5725-P60
  *
- * Contributors:
- * IBM - Initial Contribution
- *******************************************************************************/
+ * (C) Copyright IBM Corp. 2014
+ *
+ * US Government Users Restricted Rights - Use, duplication or
+ * disclosure restricted by GSA ADP Schedule Contract with
+ * IBM Corp.
+ * </copyright>
+ */
+/* jslint node: true */
+/* jshint -W083,-W097 */
+'use strict';
 
 var mqlight = require('mqlight');
 var uuid = require('node-uuid');
+var nopt = require('nopt');
 
 // The URL to use when connecting to the MQ Light server
 var serviceURL = 'amqp://localhost';
@@ -20,10 +34,15 @@ var serviceURL = 'amqp://localhost';
 var clientsPerSharedDestination = 2;
 
 // The topics to subscribe to for shared destinations
-var sharedTopics = ['shared1', 'shared2'];
+var sharedTopics = ['shared1', 'shared/shared2'];
 
 // The topics to subscribe to for private destinations
-var privateTopics = ['private1', 'private2', 'private3', 'private4'];
+var privateTopics = [
+  'private1',
+  'private/private2',
+  'private/private3',
+  'private4'
+];
 
 // All topics.  An entry is picked at random each time a message is sent
 var allTopics = sharedTopics.concat(privateTopics);
@@ -41,6 +60,57 @@ var loremIpsum = 'Lorem ipsum dolor sit amet, consectetur adipisicing elit, ' +
                  'pariatur. Excepteur sint occaecat cupidatat non proident, ' +
                  'sunt in culpa qui officia deserunt mollit anim id est ' +
                  'laborum.';
+
+// parse the command-line arguments
+var types = {
+  help: Boolean,
+  service: String,
+  'trust-certificate': String
+};
+var shorthands = {
+  h: ['--help'],
+  s: ['--service'],
+  c: ['--trust-certificate']
+};
+var parsed = nopt(types, shorthands, process.argv, 2);
+
+var showUsage = function() {
+  var puts = console.log;
+  puts('Usage: uiworkout.js [options]');
+  puts('');
+  puts('Options:');
+  puts('  -h, --help            show this help message and exit');
+  puts('  -s URL, --service=URL service to connect to, for example:\n' +
+       '                        amqp://user:password@host:5672 or\n' +
+       '                        amqps://host:5671 to use SSL/TLS\n' +
+       '                        (default: amqp://localhost)');
+  puts('  -c FILE, --trust-certificate=FILE\n' +
+       '                        use the certificate contained in FILE (in PEM' +
+       ' format) to\n' +
+       '                        validate the identity of the server. The' +
+       ' connection must\n' +
+       '                        be secured with SSL/TLS (e.g. the service URL' +
+       ' must start\n' +
+       "                        with 'amqps://')");
+  puts('');
+};
+
+if (parsed.help) {
+  showUsage();
+  process.exit(0);
+} else if (parsed.argv.remain.length > 0) {
+  showUsage();
+  process.exit(1);
+}
+
+Object.getOwnPropertyNames(parsed).forEach(function(key) {
+  if (key !== 'argv' && !types.hasOwnProperty(key)) {
+    console.error('Error: Unsupported commandline option "%s"', key);
+    console.error();
+    showUsage();
+    process.exit(1);
+  }
+});
 
 // Build an array of word ending offsets for loremIpsum
 var loremIpsumWords = [];
@@ -69,6 +139,34 @@ for (var i = privateTopics.length - 1; i >= 0; i--) {
   startClient(privateTopics[i]);
 }
 
+// Checks to see if the application is running in IBM Bluemix. If it is, tries
+// to retrieve connection details from the environent and populates the
+// options object passed as an argument.
+function bluemixServiceLookup(options, verbose) {
+  var result = false;
+  if (process.env.VCAP_SERVICES) {
+    if (verbose) console.log('VCAP_SERVICES variable present in environment');
+    var services = JSON.parse(process.env.VCAP_SERVICES);
+    if (services.mqlight) {
+      options.user = services.mqlight[0].credentials.username;
+      options.password = services.mqlight[0].credentials.password;
+      options.service = services.mqlight[0].credentials.connectionLookupURI;
+      if (verbose) {
+        console.log('Username:  ' + options.user);
+        console.log('Password:  ' + options.user);
+        console.log('LookupURI: ' + options.service);
+      }
+    } else {
+      throw new Error('Running in IBM Bluemix but not bound to an instance ' +
+                      "of the 'mqlight' service.");
+    }
+    result = true;
+  } else if (verbose) {
+    console.log('VCAP_SERVICES variable not present in environment');
+  }
+  return result;
+}
+
 // Creates a client.  The client will subscribe to 'topic'.  If the
 // 'share' argument is undefined the destination will be private to the
 // client.  If the 'share' argument is not undefined, it will be used
@@ -76,17 +174,35 @@ for (var i = privateTopics.length - 1; i >= 0; i--) {
 // The client is also used to periodically publish a message to a
 // randomly chosen topic.
 function startClient(topic, share) {
-  var opts = {service: serviceURL, id: 'CLIENT_' + uuid.v4().substring(0, 7)};
-  var client = mqlight.createClient(opts);
+  var opts = {id: 'CLIENT_' + uuid.v4().substring(0, 7)};
+  if (parsed.service) {
+    opts.service = parsed.service;
+  } else if (!bluemixServiceLookup(opts, false)) {
+    opts.service = 'amqp://localhost';
+  }
+  if (parsed['trust-certificate']) {
+    /** the trust-certificate to use for a TLS/SSL connection */
+    opts.sslTrustCertificate = parsed['trust-certificate'];
+    if (parsed.service) {
+      if (opts.service.indexOf('amqps', 0) !== 0) {
+        console.error("Error: the service URL must start 'amqps://' when " +
+                      'using a trust certificate.');
+        process.exit(1);
+      }
+    } else {
+      /** if none specified, change the default service to be amqps:// */
+      opts.service = 'amqps://localhost';
+    }
+  }
 
-  client.connect(function(err) {
+  var client = mqlight.createClient(opts, function(err) {
     if (err) {
       console.error('Problem with connect: ', err.message);
       process.exit(1);
     }
   });
 
-  client.on('connected', function() {
+  client.on('started', function() {
     console.log('Connected to ' + client.service + ' using id ' + client.id);
     client.subscribe(topic, share, function(err, topicPattern, share) {
       if (err) {
@@ -104,14 +220,14 @@ function startClient(topic, share) {
       var sendTopic = allTopics[Math.floor(Math.random() * allTopics.length)];
       var sendCallback = function(err, msg) {
         if (err) {
-          console.err('Problem with send request: ' + err.message);
+          console.error('Problem with send request: ' + err.message);
           process.exit(0);
         } else {
-          if (messageCount == 0) {
+          if (messageCount === 0) {
             console.log('Sending messages');
           }
           ++messageCount;
-          if (messageCount % 10 == 0) {
+          if (messageCount % 10 === 0) {
             console.log('Sent ' + messageCount + ' messages');
           }
         }
@@ -119,7 +235,7 @@ function startClient(topic, share) {
 
       setTimeout(function() {
         var start = Math.floor(Math.random() * (loremIpsumWords.length - 15));
-        var end = start + Math.floor(Math.random() * 15);
+        var end = start + 5 + Math.floor(Math.random() * 10);
         var message =
             loremIpsum.substring(loremIpsumWords[start], loremIpsumWords[end]);
         client.send(sendTopic, message, sendCallback);
