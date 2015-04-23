@@ -1,0 +1,10 @@
+---
+applications:
+- name:  mql.uiworkout.node
+  disk: 1024M
+  command: node app.js
+  memory: 128M
+  instances: 1
+  no-route: true
+  services:
+  - MQLight-sampleservice
