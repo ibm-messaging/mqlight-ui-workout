@@ -5,11 +5,14 @@
   "dependencies" : {
     "node-uuid" : "~1.4.3",
     "nopt": "~3.0.1",
-    "mqlight" : "1.0.2015031902"
+    "mqlight" : "1.0.2015061000"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/ibm-messaging/mqlight-ui-workout"
   },
-  "license" : "EPL"
+  "license" : "EPL",
+  "engines": {
+    "node": "0.12.x"
+  }
 }
