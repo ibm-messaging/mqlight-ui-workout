@@ -150,7 +150,7 @@ function bluemixServiceLookup(options, verbose) {
     if (services.mqlight) {
       options.user = services.mqlight[0].credentials.username;
       options.password = services.mqlight[0].credentials.password;
-      options.service = services.mqlight[0].credentials.connectionLookupURI;
+      options.service = services.mqlight[0].credentials.nonTLSConnectionLookupURI;
       if (verbose) {
         console.log('Username:  ' + options.user);
         console.log('Password:  ' + options.user);
